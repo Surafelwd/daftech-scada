@@ -1,0 +1,5 @@
+{
+  "name": "Daftech SCADA",
+  "description": "Enterprise-grade web SCADA platform for ultrasonic IoT water meters with daily telemetry, command lifecycle tracking, and advanced analytics.",
+  "requestFramePermissions": []
+}

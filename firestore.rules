@@ -1,0 +1,189 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - role: string (required, 'admin' | 'operator' | 'viewer')
+    //   - email: string (required)
+    //
+    // Collection: meters
+    // Document ID: {meter_id}
+    // Fields:
+    //   - meter_id: string (required, unique)
+    //   - serial_number: string (required)
+    //   - site: string (required)
+    //   - location: string
+    //   - zone: string
+    //   - gateway_id: string
+    //   - firmware_version: string
+    //   - status: string (required, 'online' | 'offline' | 'alarm' | 'maintenance')
+    //   - last_daily_update: timestamp
+    //
+    // Collection: telemetry
+    // Document ID: {telemetry_id}
+    // Fields:
+    //   - meter_id: string (required)
+    //   - snapshot_date_utc: string (required, YYYY-MM-DD)
+    //   - timestamp_utc: timestamp (required)
+    //   - flow_rate: number
+    //   - dtof: number
+    //   - abs_tof_ups: number
+    //   - abs_tof_dns: number
+    //   - alarms: list (required)
+    //   - quality_flags: list (required)
+    //   - battery: number
+    //   - total_volume: number
+    //   - network_strength: number
+    //   - ingestion_status: string
+    //   - raw_payload: map
+    //
+    // Collection: commands
+    // Document ID: {command_id}
+    // Fields:
+    //   - command_id: string (required)
+    //   - meter_id: string (required)
+    //   - command_type: string (required)
+    //   - command_payload: map
+    //   - status: string (required, 'queued' | 'sent' | 'ack' | 'nack' | 'timeout' | 'retry_exhausted')
+    //   - ack_code: string
+    //   - nack_reason: string
+    //   - retries: int
+    //   - created_at_utc: timestamp (required)
+    //   - sent_at_utc: timestamp
+    //   - responded_at_utc: timestamp
+    //   - created_by_user: string (required, UID)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "surafelwendnagegn457@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isOperator() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'operator' || isAdmin());
+    }
+
+    function isViewer() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'viewer' || isOperator());
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function validString(field, min, max) {
+      return request.resource.data[field] is string && 
+             request.resource.data[field].size() >= min && 
+             request.resource.data[field].size() <= max;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['role', 'email']) &&
+             data.role in ['admin', 'operator', 'viewer'] &&
+             isValidEmail(data.email);
+    }
+
+    function isValidMeter(data) {
+      return hasRequiredFields(['meter_id', 'serial_number', 'site', 'status']) &&
+             validString('meter_id', 1, 50) &&
+             validString('serial_number', 1, 50) &&
+             validString('site', 1, 100) &&
+             data.status in ['online', 'offline', 'alarm', 'maintenance'];
+    }
+
+    function isValidTelemetry(data) {
+      return hasRequiredFields(['meter_id', 'snapshot_date_utc', 'timestamp_utc', 'alarms', 'quality_flags']) &&
+             validString('meter_id', 1, 50) &&
+             data.snapshot_date_utc is string && data.snapshot_date_utc.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.timestamp_utc is timestamp &&
+             data.alarms is list &&
+             data.quality_flags is list;
+    }
+
+    function isValidCommand(data) {
+      return hasRequiredFields(['command_id', 'meter_id', 'command_type', 'status', 'created_at_utc', 'created_by_user']) &&
+             validString('command_id', 1, 50) &&
+             validString('meter_id', 1, 50) &&
+             validString('command_type', 1, 50) &&
+             data.status in ['queued', 'sent', 'ack', 'nack', 'timeout', 'retry_exhausted'] &&
+             data.created_at_utc is timestamp &&
+             data.created_by_user == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    ((isOwner(userId) && request.resource.data.role == 'viewer') || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+    }
+
+    match /meters/{meterId} {
+      allow read: if isViewer();
+      allow create, update: if isOperator() && isValidMeter(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /telemetry/{telemetryId} {
+      allow read: if isViewer();
+      allow create: if isOperator() && isValidTelemetry(request.resource.data);
+      allow update: if isAdmin() && isValidTelemetry(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /commands/{commandId} {
+      allow read: if isViewer();
+      allow create: if isOperator() && isValidCommand(request.resource.data);
+      allow update: if isOperator() && isValidCommand(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

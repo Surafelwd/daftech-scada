@@ -1,0 +1,33 @@
+/* 1. All imports MUST go at the very top */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
+@import "leaflet/dist/leaflet.css";
+@import "tailwindcss";
+
+/* 2. Tailwind v4 Theme Configuration */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-serif: "Libre Baskerville", serif;
+}
+
+/* 3. Custom Base Styles */
+@layer base {
+  .mono {
+    font-family: var(--font-mono);
+    letter-spacing: -0.02em;
+  }
+  
+  .serif {
+    font-family: var(--font-serif);
+  }
+
+  .col-header {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 11px;
+    opacity: 0.5;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #18181b;
+  }
+}
