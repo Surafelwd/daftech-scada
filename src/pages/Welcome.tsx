@@ -13,31 +13,36 @@ const SLIDE_PAGES = [
     title: "Global Dashboard",
     description: "Live interactive overview of the entire SCADA network, alarms, and ingestion rates.",
     component: <Dashboard />,
-    color: "from-blue-50 to-indigo-50 border-indigo-100"
+    color: "from-blue-50 to-indigo-50 border-indigo-100",
+    path: "/"
   },
   {
     title: "Industrial Map Interface",
     description: "Live geospatial telemetry showing real-time meter locations and active alarm clusters.",
     component: <SiteManagement mapOnly />,
-    color: "from-sky-50 to-blue-50 border-sky-100"
+    color: "from-sky-50 to-blue-50 border-sky-100",
+    path: "/sites"
   },
   {
     title: "Site Hierarchy Status",
     description: "Organize assets by geography, verify regional health, and monitor network topology.",
     component: <SiteManagement sitesOnly />,
-    color: "from-indigo-50 to-purple-50 border-purple-100"
+    color: "from-indigo-50 to-purple-50 border-purple-100",
+    path: "/sites"
   },
   {
     title: "Advanced Analytics",
     description: "Deep dive into battery trending, communication health, and predictive leak detection.",
     component: <Analytics />,
-    color: "from-blue-50 to-cyan-50 border-blue-100"
+    color: "from-blue-50 to-cyan-50 border-blue-100",
+    path: "/analytics"
   },
   {
     title: "Command Lifecycle",
     description: "Direct control center to issue valves overrides and immediate reading sync requests.",
     component: <CommandCenter />,
-    color: "from-zinc-50 to-zinc-100 border-zinc-200"
+    color: "from-zinc-50 to-zinc-100 border-zinc-200",
+    path: "/commands"
   }
 ];
 
